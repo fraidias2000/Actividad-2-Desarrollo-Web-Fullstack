@@ -3,7 +3,11 @@ package com.relatosdepapel.catalogue_service.service;
 import com.relatosdepapel.catalogue_service.model.Book;
 import com.relatosdepapel.catalogue_service.repository.BookRepository;
 import org.springframework.stereotype.Service;
-
+import com.relatosdepapel.catalogue_service.specification.BookSpecification;
+import org.springframework.data.jpa.domain.Specification;
+import com.relatosdepapel.catalogue_service.exception.BookNotFoundException;
+import com.relatosdepapel.catalogue_service.exception.DuplicateISBNBookException;
+import java.time.LocalDate;
 import java.util.List;
 
 //CLASE JAVA DONDE SE IMPLEMENTA LA INTERFAZ JPA Y LA LÓGICA DE NEGOCIO
@@ -22,17 +26,17 @@ public class BookService {
 
     public Book findById(Long id) {
         return bookRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Libro no encontrado con id: " + id));
+                .orElseThrow(() -> new BookNotFoundException("Libro no encontrado con id: " + id));
     }
 
     public Book findByIsbn(String isbn) {
         return bookRepository.findByIsbn(isbn)
-                .orElseThrow(() -> new RuntimeException("Libro no encontrado con ISBN: " + isbn));
+                .orElseThrow(() -> new BookNotFoundException("Libro no encontrado con ISBN: " + isbn));
     }
 
     public Book create(Book book) {
         if (bookRepository.existsByIsbn(book.getIsbn())) {
-            throw new RuntimeException("Ya existe un libro con ISBN: " + book.getIsbn());
+            throw new DuplicateISBNBookException("Ya existe un libro con ISBN: " + book.getIsbn());
         }
 
         return bookRepository.save(book);
@@ -98,9 +102,31 @@ public class BookService {
 
     public void delete(Long id) {
         if (!bookRepository.existsById(id)) {
-            throw new RuntimeException("Libro no encontrado con id: " + id);
+            throw new BookNotFoundException("Libro no encontrado con id: " + id);
         }
 
         bookRepository.deleteById(id);
     }
+
+    public List<Book> search(
+            String title,
+            String author,
+            LocalDate publicationDate,
+            String category,
+            String isbn,
+            Integer rating,
+            Boolean visible
+    ) {
+        Specification<Book> specification = Specification
+                .where(BookSpecification.hasTitle(title))
+                .and(BookSpecification.hasAuthor(author))
+                .and(BookSpecification.hasPublicationDate(publicationDate))
+                .and(BookSpecification.hasCategory(category))
+                .and(BookSpecification.hasIsbn(isbn))
+                .and(BookSpecification.hasRating(rating))
+                .and(BookSpecification.hasVisible(visible));
+
+        return bookRepository.findAll(specification);
+    }
+
 }
